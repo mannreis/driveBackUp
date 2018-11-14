@@ -1,19 +1,25 @@
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 from pydrive.files import GoogleDriveFile
-from subprocess import Popen, PIPE
 
 from os import mkdir
 # Authenticate the client.
 gauth = GoogleAuth()
-gauth.LocalWebserverAuth()
+# Try to load saved client credentials
+gauth.LoadCredentialsFile("mycreds.txt")
+if gauth.credentials is None:
+    # Authenticate if they're not there
+    gauth.LocalWebserverAuth()
+elif gauth.access_token_expired:
+    # Refresh them if expired
+    gauth.Refresh()
+else:
+    # Initialize the saved creds
+    gauth.Authorize()
+# Save the current credentials to a file
+gauth.SaveCredentialsFile("mycreds.txt")
+
 drive = GoogleDrive(gauth)
-
-sp = Popen(['bash'], shell=True, stdin=PIPE)
-
-def cmd(i):
-	sp.stdin.write((i +'\n').encode())
-
 
 def mimeType(file):
 	if file.metadata.get('mimeType') == 'application/vnd.google-apps.folder':
@@ -32,6 +38,7 @@ def inOrder(path, id):
 					s = file.GetContentString(mimetype="application/pdf")
 				except:
 					s = file.content.read()
+					file.content.close()
 				f.write(s)
 				
 		else:
